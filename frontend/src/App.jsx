@@ -340,7 +340,7 @@ export default function App() {
                   onChange={() => setRetentionMode('permanent')}
                   disabled={isUploading}
                 />
-                <span><strong>Conservar permanentemente</strong><small>El sistema lo almacena como siempre lo hacía, sin ningún cambio.</small></span>
+                <span><strong>Conservar permanentemente</strong><small>El sistema lo almacena, sin ningún cambio.</small></span>
               </label>
               <label className="radio-option">
                 <input

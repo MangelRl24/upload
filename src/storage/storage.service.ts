@@ -29,32 +29,45 @@ export interface ObjectMetadata {
   originalName?: string;
   watermarked?: string;
   originalKey?: string;
-  /** 'true' si el objeto se guarda comprimido (gzip) de forma transparente y sin pérdida de calidad. */
   compressed?: string;
-  /** Tamaño real del archivo original (sin comprimir), en bytes, como texto. */
   originalSize?: string;
-  /** 'permanent' | 'temporary' — política de conservación elegida por el usuario. */
   retention?: string;
-  /** Fecha ISO en la que el archivo temporal debe eliminarse automáticamente. */
   expiresAt?: string;
+  sha256?: string;
+  pdfVariant?: string;
 }
 
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
-  private readonly bucket = process.env.S3_BUCKET || 'archivos-policiales';
+
+  private readonly bucket =
+    process.env.S3_BUCKET || 'archivos-policiales';
+
   private readonly client = new S3Client({
-    endpoint: process.env.S3_ENDPOINT || 'http://minio:9000',
-    region: process.env.S3_REGION || 'us-east-1',
+    endpoint:
+      process.env.S3_ENDPOINT ||
+      'http://minio:9000',
+    region:
+      process.env.S3_REGION ||
+      'us-east-1',
     forcePathStyle: true,
     credentials: {
-      accessKeyId: process.env.S3_ACCESS_KEY || 'minioadmin',
-      secretAccessKey: process.env.S3_SECRET_KEY || 'minioadmin',
+      accessKeyId:
+        process.env.S3_ACCESS_KEY ||
+        'minioadmin',
+      secretAccessKey:
+        process.env.S3_SECRET_KEY ||
+        'minioadmin',
     },
   });
 
   async onModuleInit(): Promise<void> {
-    for (let attempt = 1; attempt <= 20; attempt += 1) {
+    for (
+      let attempt = 1;
+      attempt <= 20;
+      attempt += 1
+    ) {
       try {
         await this.ensureBucket();
         return;
@@ -62,10 +75,14 @@ export class StorageService implements OnModuleInit {
         if (attempt === 20) {
           throw error;
         }
+
         this.logger.warn(
           `MinIO aún no está disponible (intento ${attempt}/20). Reintentando…`,
         );
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000),
+        );
       }
     }
   }
@@ -90,151 +107,305 @@ export class StorageService implements OnModuleInit {
   async get(key: string) {
     try {
       return await this.client.send(
-        new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+        }),
       );
     } catch (error) {
       if (this.isNotFound(error)) {
-        throw new NotFoundException('El archivo solicitado no existe.');
+        throw new NotFoundException(
+          'El archivo solicitado no existe.',
+        );
       }
+
       throw error;
     }
   }
 
   async remove(key: string): Promise<void> {
     await this.client.send(
-      new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
     );
   }
 
   async list(): Promise<ObjectSummary[]> {
     const objects: ObjectSummary[] = [];
-    let continuationToken: string | undefined;
-    const MAX_OBJECTS = 5000; // límite de seguridad para evitar listados descontrolados
+
+    let continuationToken:
+      | string
+      | undefined;
+
+    const MAX_OBJECTS = 5000;
 
     do {
-      const result = await this.client.send(
-        new ListObjectsV2Command({
-          Bucket: this.bucket,
-          Prefix: 'archivos/',
-          MaxKeys: 1000,
-          ContinuationToken: continuationToken,
-        }),
-      );
+      const result =
+        await this.client.send(
+          new ListObjectsV2Command({
+            Bucket: this.bucket,
+            Prefix: 'archivos/',
+            MaxKeys: 1000,
+            ContinuationToken:
+              continuationToken,
+          }),
+        );
 
-      for (const entry of result.Contents || []) {
-        if (!entry.Key) continue;
+      for (
+        const entry of
+        result.Contents || []
+      ) {
+        if (!entry.Key) {
+          continue;
+        }
+
         objects.push({
           key: entry.Key,
           size: entry.Size || 0,
-          lastModified: entry.LastModified,
+          lastModified:
+            entry.LastModified,
         });
       }
 
-      continuationToken = result.IsTruncated
-        ? result.NextContinuationToken
-        : undefined;
-    } while (continuationToken && objects.length < MAX_OBJECTS);
+      continuationToken =
+        result.IsTruncated
+          ? result.NextContinuationToken
+          : undefined;
+    } while (
+      continuationToken &&
+      objects.length < MAX_OBJECTS
+    );
 
     return objects.sort(
       (first, second) =>
-        (second.lastModified?.getTime() || 0) -
-        (first.lastModified?.getTime() || 0),
+        (second.lastModified?.getTime() ||
+          0) -
+        (first.lastModified?.getTime() ||
+          0),
     );
   }
 
-  async metadata(key: string): Promise<ObjectMetadata> {
+  async metadata(
+    key: string,
+  ): Promise<ObjectMetadata> {
     try {
-      const result = await this.client.send(
-        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
-      );
+      const result =
+        await this.client.send(
+          new HeadObjectCommand({
+            Bucket: this.bucket,
+            Key: key,
+          }),
+        );
+
       return {
-        contentType: result.ContentType,
-        originalName: result.Metadata?.originalname,
-        watermarked: result.Metadata?.watermarked,
-        originalKey: result.Metadata?.originalkey,
-        compressed: result.Metadata?.compressed,
-        originalSize: result.Metadata?.originalsize,
-        retention: result.Metadata?.retention,
-        expiresAt: result.Metadata?.expiresat,
+        contentType:
+          result.ContentType,
+
+        originalName:
+          result.Metadata?.originalname,
+
+        watermarked:
+          result.Metadata?.watermarked,
+
+        originalKey:
+          result.Metadata?.originalkey,
+
+        compressed:
+          result.Metadata?.compressed,
+
+        originalSize:
+          result.Metadata?.originalsize,
+
+        retention:
+          result.Metadata?.retention,
+
+        expiresAt:
+          result.Metadata?.expiresat,
+
+        sha256:
+          result.Metadata?.sha256,
+
+        pdfVariant:
+          result.Metadata?.pdfvariant,
       };
     } catch (error) {
       if (this.isNotFound(error)) {
-        throw new NotFoundException('El archivo solicitado no existe.');
+        throw new NotFoundException(
+          'El archivo solicitado no existe.',
+        );
       }
+
       throw error;
     }
   }
 
-  createKey(originalName: string): string {
-    const date = new Date().toISOString().slice(0, 10);
-    const extension = extname(originalName).toLowerCase();
+  createKey(
+    originalName: string,
+  ): string {
+    const date =
+      new Date()
+        .toISOString()
+        .slice(0, 10);
+
+    const extension =
+      extname(
+        originalName,
+      ).toLowerCase();
+
     const name =
-      basename(originalName, extension)
+      basename(
+        originalName,
+        extension,
+      )
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9._-]/g, '-')
+        .replace(
+          /[\u0300-\u036f]/g,
+          '',
+        )
+        .replace(
+          /[^a-zA-Z0-9._-]/g,
+          '-',
+        )
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '')
-        .slice(0, 80) || 'archivo';
-    const safeExtension = /^[.][a-zA-Z0-9]{1,10}$/.test(extension)
-      ? extension
-      : '';
+        .slice(0, 80) ||
+      'archivo';
+
+    const safeExtension =
+      /^[.][a-zA-Z0-9]{1,10}$/.test(
+        extension,
+      )
+        ? extension
+        : '';
+
     return `archivos/${date}/${randomUUID()}-${name}${safeExtension}`;
   }
 
-  createOriginalKey(key: string): string {
-    if (!key.startsWith('archivos/')) {
-      throw new BadRequestException('La ubicación del archivo no es válida.');
+  createOriginalKey(
+    key: string,
+  ): string {
+    if (
+      !key.startsWith(
+        'archivos/',
+      )
+    ) {
+      throw new BadRequestException(
+        'La ubicación del archivo no es válida.',
+      );
     }
-    return `originales/${key.substring('archivos/'.length)}`;
+
+    return `originales/${key.substring(
+      'archivos/'.length,
+    )}`;
   }
 
   encodeId(key: string): string {
-    return Buffer.from(key).toString('base64url');
+    return Buffer.from(
+      key,
+    ).toString('base64url');
   }
 
   decodeId(id: string): string {
     try {
-      const key = Buffer.from(id, 'base64url').toString('utf8');
-      if (!key.startsWith('archivos/') || key.includes('..')) {
-        throw new Error('Identificador fuera del espacio permitido.');
+      const key =
+        Buffer.from(
+          id,
+          'base64url',
+        ).toString('utf8');
+
+      if (
+        !key.startsWith(
+          'archivos/',
+        ) ||
+        key.includes('..')
+      ) {
+        throw new Error(
+          'Identificador fuera del espacio permitido.',
+        );
       }
+
       return key;
     } catch {
-      throw new BadRequestException('El identificador del archivo no es válido.');
+      throw new BadRequestException(
+        'El identificador del archivo no es válido.',
+      );
     }
   }
 
   private async ensureBucket(): Promise<void> {
     try {
-      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      await this.client.send(
+        new HeadBucketCommand({
+          Bucket: this.bucket,
+        }),
+      );
     } catch (error) {
       if (!this.isNotFound(error)) {
         throw error;
       }
+
       try {
-        await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
-        this.logger.log(`Bucket «${this.bucket}» creado.`);
+        await this.client.send(
+          new CreateBucketCommand({
+            Bucket: this.bucket,
+          }),
+        );
+
+        this.logger.log(
+          `Bucket «${this.bucket}» creado.`,
+        );
       } catch (createError) {
-        // Otro contenedor puede haberlo creado durante este intervalo.
-        if (!this.isAlreadyExists(createError)) {
+        if (
+          !this.isAlreadyExists(
+            createError,
+          )
+        ) {
           throw createError;
         }
       }
     }
   }
 
-  private isNotFound(error: unknown): boolean {
+  private isNotFound(
+    error: unknown,
+  ): boolean {
     const code =
-      (error as { name?: string; Code?: string })?.name ||
-      (error as { Code?: string })?.Code;
-    return ['NotFound', 'NoSuchBucket', 'NoSuchKey', '404'].includes(code || '');
+      (
+        error as {
+          name?: string;
+          Code?: string;
+        }
+      )?.name ||
+      (
+        error as {
+          Code?: string;
+        }
+      )?.Code;
+
+    return ['NotFound','NoSuchBucket','NoSuchKey','404',].includes(code || '');
   }
 
-  private isAlreadyExists(error: unknown): boolean {
+  private isAlreadyExists(
+    error: unknown,
+  ): boolean {
     const code =
-      (error as { name?: string; Code?: string })?.name ||
-      (error as { Code?: string })?.Code;
-    return ['BucketAlreadyOwnedByYou', 'BucketAlreadyExists'].includes(code || '');
+      (
+        error as {
+          name?: string;
+          Code?: string;
+        }
+      )?.name ||
+      (
+        error as {
+          Code?: string;
+        }
+      )?.Code;
+
+    return [
+      'BucketAlreadyOwnedByYou',
+      'BucketAlreadyExists',
+    ].includes(code || '');
   }
 }

@@ -27,7 +27,7 @@
     "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/serve-static": "^4.0.2",
-    "@nestjs/swagger": "^7.3.1",
+    "@nestjs/swagger": "^7.4.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "cloudinary": "^2.2.0",
@@ -39,6 +39,7 @@
     "rxjs": "^7.8.1",
     "sharp": "^0.33.4",
     "streamifier": "^0.1.1",
+    "swagger-ui-express": "^5.0.1",
     "winston": "^3.13.0",
     "winston-daily-rotate-file": "^5.0.0"
   },
