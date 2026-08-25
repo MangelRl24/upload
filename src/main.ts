@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WinstonModule } from 'nest-winston';
 import { instance } from './utils/loggers/winston.logger';
 import { AllExceptionsFilter } from './common/helper/all-exceptions';
+import { apiReference } from '@scalar/nestjs-api-reference';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -23,7 +24,8 @@ async function bootstrap() {
       .setVersion('1.0')
       .build();
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('/api/docs', app, document); // Cambia la ruta de Swagger a /api/docs
+    /*SwaggerModule.setup('/api/docs', app, document); // Cambia la ruta de Swagger a /api/docs*/
+    app.use('/api/docs',apiReference({content: document, pageTitle: 'API Documentation'}),);
   }
   app.useGlobalPipes(
     new ValidationPipe({
